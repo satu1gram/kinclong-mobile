@@ -28,7 +28,22 @@ Membangun aplikasi mobile manajemen car wash bernama **Kinclong** menggunakan Re
 
 ## What's Been Implemented
 
-### Phase 1 — 2026-02 (Architecture & Setup) ✅
+### Phase 2 — 2026-02 (Design System & UI Primitives) ✅
+- **Theme Tokens** di `src/theme/`:
+  - `colors.ts`: primary (#3B82F6), accent (#F97316), neutral, semantic (success/warning/error/info)
+  - `typography.ts`: fontSize (xs→5xl), fontWeight, lineHeight, letterSpacing, fontFamily
+  - `spacing.ts`: 4pt grid scale, borderRadius (none→full), breakpoints
+  - `shadows.ts`: none/sm/md/lg/xl — bekerja di iOS & Android
+  - `index.ts`: barrel export + `theme` object default export
+- **Tailwind config** diperbarui: primary + accent color palette
+- **Updated Components** (backward-compatible + enhanced):
+  - `Button`: +`accent` variant, +`xs`/`xl` sizes, +`fullWidth`, +`spinnerColor` per variant
+  - `Card`: +`outline` variant, +pressable via `onPress` prop (Union type)
+  - `Input`: +focus state border, +multiline support, +disabled state, +focus tracking
+- **New Components**:
+  - `TextHeading`: h1–h4 levels × 5 warna (default/primary/accent/muted/white)
+  - `Badge`: 6 variants × 3 sizes × dot indicator
+- **Type exports**: semua komponen export interface types-nya
 - `/app/mobile/` — React Native project root
 - Config files: `package.json`, `tsconfig.json`, `babel.config.js`, `metro.config.js`, `tailwind.config.js`, `jest.config.js`, `app.config.ts`
 - **NativeWind v4** setup dengan `global.css` + metro integration
