@@ -3,10 +3,11 @@
 ## Problem Statement
 Membangun aplikasi mobile manajemen car wash bernama **Kinclong** menggunakan React Native + TypeScript. Memberikan pengalaman mobile yang cepat dan responsif untuk pemilik serta operator car wash dalam mengelola operasional bisnis sehari-hari.
 
-## Architecture (Phase 1 — Completed)
+## Architecture
 - **Framework**: Expo SDK 51 + React Native 0.74 + TypeScript (strict)
 - **Navigation**: React Navigation v6 (Stack + Bottom Tabs)
-- **Backend**: Supabase (Auth, PostgreSQL, Realtime) — client configured
+- **Backend (planned)**: Supabase (Auth, PostgreSQL, Realtime)
+- **Backend (Phase 3 current)**: **Mock auth service** (in-memory + AsyncStorage) — no network
 - **Styling**: NativeWind v4 (Tailwind CSS for React Native)
 - **State Management**: Zustand v5
 - **i18n**: i18next + react-i18next (ID default, EN)
@@ -17,7 +18,7 @@ Membangun aplikasi mobile manajemen car wash bernama **Kinclong** menggunakan Re
 - **Operator**: Akses operasional (antrean, dashboard terbatas)
 - **Kiosk User**: Input antrean saja (mode kiosk)
 
-## Core Requirements (Static)
+## Core Requirements
 1. Manajemen antrean kendaraan real-time
 2. Laporan bisnis (harian/mingguan/bulanan)
 3. Manajemen layanan & harga
@@ -28,62 +29,89 @@ Membangun aplikasi mobile manajemen car wash bernama **Kinclong** menggunakan Re
 
 ## What's Been Implemented
 
-### Phase 2 — 2026-02 (Design System & UI Primitives) ✅
-- **Theme Tokens** di `src/theme/`:
-  - `colors.ts`: primary (#3B82F6), accent (#F97316), neutral, semantic (success/warning/error/info)
-  - `typography.ts`: fontSize (xs→5xl), fontWeight, lineHeight, letterSpacing, fontFamily
-  - `spacing.ts`: 4pt grid scale, borderRadius (none→full), breakpoints
-  - `shadows.ts`: none/sm/md/lg/xl — bekerja di iOS & Android
-  - `index.ts`: barrel export + `theme` object default export
-- **Tailwind config** diperbarui: primary + accent color palette
-- **Updated Components** (backward-compatible + enhanced):
-  - `Button`: +`accent` variant, +`xs`/`xl` sizes, +`fullWidth`, +`spinnerColor` per variant
-  - `Card`: +`outline` variant, +pressable via `onPress` prop (Union type)
-  - `Input`: +focus state border, +multiline support, +disabled state, +focus tracking
-- **New Components**:
-  - `TextHeading`: h1–h4 levels × 5 warna (default/primary/accent/muted/white)
-  - `Badge`: 6 variants × 3 sizes × dot indicator
-- **Type exports**: semua komponen export interface types-nya
-- `/app/mobile/` — React Native project root
-- Config files: `package.json`, `tsconfig.json`, `babel.config.js`, `metro.config.js`, `tailwind.config.js`, `jest.config.js`, `app.config.ts`
-- **NativeWind v4** setup dengan `global.css` + metro integration
-- **Navigation**: `RootNavigator` (auth gating) + `AuthNavigator` (Stack) + `MainNavigator` (Bottom Tabs)
-- **Navigation Types**: Type-safe params untuk semua screens
-- **Supabase Client**: `lib/supabase.ts` — singleton dengan AsyncStorage persistence
-- **i18n**: `i18n.config.ts` + `locales/id.json` + `locales/en.json` (60+ translation keys)
-- **Type Definitions**: User, CarWash, QueueItem, Service, Report, Subscription
-- **Stores**: `authStore.ts` + `queueStore.ts` (Zustand v5)
-- **Custom Hooks**: `useAuth.ts` (role flags) + `useI18n.ts` (language switch)
-- **Common Components**: Button (5 varian) + Card (3 varian) + Input + Loading
-- **Screens**: Login, Register, Dashboard, Queue, Services, Reports, Kiosk, Subscription, Settings
-- **Testing**: 7/7 tests passing (authStore + Button component)
+### Phase 1 — Setup ✅
+- Project root `/app/mobile/`, NativeWind v4 + Metro/Babel + Jest configured
+- Navigation: `RootNavigator` (auth gating) + `AuthNavigator` + `MainNavigator`
+- i18n: ID + EN locales (60+ keys)
+- Type definitions: User, CarWash, QueueItem, Service, Report, Subscription
+- Stores: authStore + queueStore (Zustand)
+
+### Phase 2 — Design System ✅
+- Theme tokens: colors, typography, spacing, shadows
+- Components: Button (6 variants, 5 sizes, fullWidth), Card (3 variants + pressable), Input (focus/multiline/disabled), TextHeading (h1–h4, 5 colors), Badge (6 variants, 3 sizes, dot indicator), Loading
+- Tailwind config dengan primary (#3B82F6) + accent (#F97316) palette
+
+### Phase 3 — Auth Flow ✅ (2026-02)
+- **Mock auth service** (`lib/authService.ts`):
+  - In-memory user store + AsyncStorage session persistence
+  - `signIn`, `signUp`, `signOut`, `resetPassword`, `getSession`, `signInWithGoogle`, `onAuthStateChange`
+  - Auto-confirms registrations (no email verification)
+  - Seed user: `demo@kinclong.id` / `password123`
+  - `__test__` helpers untuk reset state di test
+- **authStore** (Zustand): user/isLoading/isInitialized/error/needsEmailVerification + actions
+- **useAuth hook**: role flags (isOwner/isOperator/isKioskUser) + computed `isAuthenticated`
+- **Validation utils** (`utils/validation.ts`): email/password/required/match + form-level helpers
+- **Screens**:
+  - `LoginScreen`: email/password + demo hint + Google OAuth + error banner + forgot password link
+  - `RegisterScreen`: car wash + owner data + password (3 cards) + Google OAuth + error banner
+  - `ForgotPasswordScreen`: email reset (mock — selalu sukses untuk format valid)
+- **Auth Guard**: `RootNavigator` switch berdasarkan `user` & `isInitialized` (loading state)
+- **data-testid** lengkap di semua interactive elements untuk e2e testing
+- **Tests**: 64/64 passing (validation, store integration, screen render & interaction)
+
+## Test Credentials
+Lihat `/app/memory/test_credentials.md`.
 
 ## Prioritized Backlog
 
-### P0 — Phase 2: Supabase Integration
-- [ ] Auth: signUp, signIn, password reset via Supabase
-- [ ] Database: Schema PostgreSQL (users, carwashes, queues, services)
-- [ ] Realtime: Supabase channel untuk queue updates
-- [ ] RLS Policies per role
+### P1 — Next Phase: Core Features
+- [ ] **Queue Management** (Antrean Kendaraan)
+  - CRUD antrean + status (waiting → in_progress → done/cancelled)
+  - Real-time updates antar device (mocked dulu, Supabase later)
+  - Daftar antrean dengan filter & sort
+- [ ] **Service & Pricing Management**
+  - CRUD layanan (nama, harga per vehicle type, durasi)
+  - Active/inactive toggle
+- [ ] **Business Reports & Dashboard**
+  - Live stats (antrean hari ini, pendapatan, completion rate)
+  - Period filter (harian/mingguan/bulanan/tahunan)
+  - Breakdown per vehicle type & per service
 
-### P1 — Phase 3: Core Features
-- [ ] Queue: CRUD antrean + update status real-time
-- [ ] Services: CRUD layanan + harga per kendaraan
-- [ ] Reports: Aggregated data + filter periode
-- [ ] Dashboard: Live stats
+### P2 — Advanced Features
+- [ ] **Kiosk Mode**: Layar input cepat (tanpa bottom tab), nomor antrean otomatis
+- [ ] **Subscription Plans**: Free/Basic/Pro/Enterprise + payment (Midtrans/Stripe)
+- [ ] **Multi-role / Team Management**: Invite operator, assign role per outlet
 
-### P1 — Phase 4: Advanced Features
-- [ ] Kiosk Mode: Submit ke Supabase + tampil nomor antrean
-- [ ] Subscription: Payment gateway (Midtrans/Stripe)
-- [ ] Team Management: Invite, assign role
+### P2 — Real Backend Integration
+- [ ] Replace mock auth with Supabase (`lib/supabase.ts` + restore `authService.ts`)
+- [ ] PostgreSQL schema (users, carwashes, queues, services, subscriptions)
+- [ ] RLS policies per role
+- [ ] Realtime channels untuk queue updates
 
-### P2 — Phase 5: Polish & Deploy
-- [ ] Push Notifications (Expo Notifications)
-- [ ] Avatar upload (Supabase Storage)
-- [ ] EAS Build + Play Store / App Store
-- [ ] Analytics
+### P3 — Polish & Deploy
+- [ ] Onboarding tutorial untuk owner baru
+- [ ] Push notifications (Expo Notifications)
+- [ ] Offline-first dengan sync queue
+- [ ] App icon, splash screen, branding final
+- [ ] EAS Build → TestFlight / Play Console
 
-## Next Tasks
-1. Setup database schema Supabase (tables + RLS)
-2. Implement auth flow lengkap (signUp + signIn + onboarding)
-3. Real-time queue management
+## File Architecture (Current)
+```
+/app/mobile/
+├── App.tsx
+├── app.config.ts, babel.config.js, tailwind.config.js, jest.config.js
+├── jest.setup.ts (mocks AsyncStorage + url polyfill)
+├── src/
+│   ├── components/common/  (Button, Card, Input, TextHeading, Badge, Loading)
+│   ├── hooks/              (useAuth, useI18n)
+│   ├── i18n/               (i18n.config.ts + locales/id.json + en.json)
+│   ├── lib/                (authService.ts [mock], supabase.ts [stub])
+│   ├── navigation/         (RootNavigator, AuthNavigator, MainNavigator, types.ts)
+│   ├── screens/auth/       (Login, Register, ForgotPassword) + __tests__/
+│   ├── screens/...         (dashboard, queue, services, reports, kiosk, settings, subscription)
+│   ├── store/              (authStore, queueStore)
+│   ├── theme/              (colors, typography, spacing, shadows)
+│   ├── types/              (index.ts — global domain types)
+│   ├── utils/              (validation.ts + __tests__/)
+│   └── __tests__/          (auth integration)
+```

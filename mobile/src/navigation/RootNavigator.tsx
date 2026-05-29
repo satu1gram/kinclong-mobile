@@ -1,39 +1,41 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
-import AuthNavigator from './AuthNavigator';
-import MainNavigator from './MainNavigator';
-import KioskScreen from '../screens/kiosk/KioskScreen';
+import AuthNavigator      from './AuthNavigator';
+import MainNavigator      from './MainNavigator';
+import KioskScreen        from '../screens/kiosk/KioskScreen';
 import SubscriptionScreen from '../screens/subscription/SubscriptionScreen';
-import Loading from '../components/common/Loading';
-import { useAuthStore } from '../store/authStore';
+import Loading            from '../components/common/Loading';
+import { useAuthStore }   from '../store/authStore';
 
 /**
- * navigation/RootNavigator.tsx - Navigator utama aplikasi Kinclong
+ * navigation/RootNavigator.tsx — Root navigator + Auth Guard
  *
- * Mengelola alur navigasi berdasarkan status autentikasi Supabase:
- * - isLoading → Tampilkan Loading screen
- * - user == null → AuthNavigator (Login / Register)
- * - user != null → MainNavigator (Bottom Tabs) + modal screens
+ * Logika proteksi route:
+ * 1. isInitialized = false → Loading screen (session belum dicek)
+ * 2. user = null           → AuthNavigator (Login/Register/ForgotPassword)
+ * 3. user != null          → MainNavigator + overlay screens
  *
- * Kiosk & Subscription dapat diakses sebagai overlay screen
- * di atas MainNavigator tanpa header.
+ * Pengguna tidak bisa mengakses Main screens tanpa login.
+ * Setelah signOut, `user` menjadi null → otomatis kembali ke Auth.
  */
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { user, isLoading } = useAuthStore();
+  const { user, isInitialized } = useAuthStore();
 
-  if (isLoading) {
+  // Tunggu hingga session Supabase selesai di-restore dari AsyncStorage
+  if (!isInitialized) {
     return <Loading message="Memuat aplikasi..." />;
   }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
+        // ── Authenticated: Main App ──────────────────────────────
         <>
-          <Stack.Screen name="Main" component={MainNavigator} />
+          <Stack.Screen name="Main"         component={MainNavigator} />
           <Stack.Screen
             name="Kiosk"
             component={KioskScreen}
@@ -46,6 +48,7 @@ export default function RootNavigator() {
           />
         </>
       ) : (
+        // ── Unauthenticated: Auth Flow ───────────────────────────
         <Stack.Screen name="Auth" component={AuthNavigator} />
       )}
     </Stack.Navigator>
