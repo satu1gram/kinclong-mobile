@@ -6,11 +6,18 @@ module.exports = function (api) {
   // karena tidak ada styles yang di-render di test environment
   const isTest = process.env.NODE_ENV === 'test';
 
+  // Opsi untuk babel-preset-expo:
+  // - jsxImportSource: 'nativewind' → wajib untuk NativeWind v4
+  // - reanimated: false → matikan auto-load 'react-native-worklets/plugin'
+  //   (project ini tidak pakai Reanimated; mencegah error "Cannot find module
+  //   'react-native-worklets/plugin'" saat bundling iOS/Android)
+  const expoPresetOptions = isTest
+    ? { reanimated: false }
+    : { jsxImportSource: 'nativewind', reanimated: false };
+
   return {
     presets: [
-      isTest
-        ? 'babel-preset-expo'
-        : ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
+      ['babel-preset-expo', expoPresetOptions],
       ...(isTest ? [] : ['nativewind/babel']),
     ],
     plugins: [
