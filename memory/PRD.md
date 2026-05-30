@@ -59,6 +59,25 @@ Membangun aplikasi mobile manajemen car wash bernama **Kinclong** menggunakan Re
 - **data-testid** lengkap di semua interactive elements untuk e2e testing
 - **Tests**: 64/64 passing (validation, store integration, screen render & interaction)
 
+### Phase 4 — Dashboard Owner ✅ (2026-02)
+- **Mock data layer** (`lib/mockDashboardData.ts`):
+  - Shape: `dailyRevenue`, `weeklyRevenue[7]`, `totalVehicles`, `popularService`, `vehicleStats[]`, `activeQueue`
+  - Helpers: `formatRupiah` (id-ID), `formatCompactIDR` (jt/rb), `getTimeBasedGreeting`, `changePercent`
+- **Reusable dashboard components** (`components/dashboard/`):
+  - `GreetingHeader` — sapaan dinamis (Pagi/Siang/Sore/Malam) + nama user + subtitle
+  - `RevenueCard` — `featured` (accent solid) & default variants + trend indicator (↑↓ %)
+  - `MiniBarChart` — pure RN, 7-bar chart (highest bar di-highlight accent), no external chart libs
+- **DashboardScreen** rewrite:
+  - Greeting header dengan emoji waktu
+  - Card omzet hari ini (featured) + trend vs kemarin
+  - Quick stats grid (total kendaraan, antrean aktif)
+  - Grafik mingguan (7 hari) + total
+  - Breakdown jenis kendaraan dengan progress bar
+  - Layanan terlaris dengan stats transaksi & pendapatan
+  - Pull-to-refresh + layout mobile-friendly (responsif via flex)
+- **i18n keys baru**: `welcome_subtitle`, `weekly_revenue`, `total_vehicles`, `active_queue`, `by_vehicle_type`, `popular_service`
+- **Tests**: 96/96 passing total (+32 dari Phase 4: helpers, GreetingHeader, RevenueCard, MiniBarChart, DashboardScreen)
+
 ## Test Credentials
 Lihat `/app/memory/test_credentials.md`.
 

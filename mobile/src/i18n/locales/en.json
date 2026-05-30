@@ -42,12 +42,18 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome",
+    "welcome_subtitle": "Your business summary today",
     "today_summary": "Today's Summary",
     "total_queue": "Total Queue",
     "completed": "Completed",
     "in_progress": "In Progress",
     "waiting": "Waiting",
     "revenue_today": "Today's Revenue",
+    "weekly_revenue": "Weekly Revenue",
+    "total_vehicles": "Total Vehicles",
+    "active_queue": "Active Queue",
+    "by_vehicle_type": "By Vehicle Type",
+    "popular_service": "Top Service",
     "recent_activity": "Recent Activity",
     "quick_stats": "Quick Stats",
     "no_activity": "No activity today"
