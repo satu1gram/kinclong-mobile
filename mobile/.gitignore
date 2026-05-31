@@ -14,7 +14,6 @@ dist/
 .expo/
 dist/
 web-build/
-expo-env.d.ts
 
 # Environment
 .env
@@ -41,3 +40,8 @@ yarn-error.log*
 .vscode/
 *.swp
 *.swo
+
+# Native directories
+/android/
+/ios/
+

@@ -6,14 +6,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import type { AuthScreenProps } from '../../navigation/types';
-import { Button }      from '../../components/common/Button';
-import { Input }       from '../../components/common/Input';
-import { TextHeading } from '../../components/common/TextHeading';
-import { Card }        from '../../components/common/Card';
+import { Button, Card, Input, TextHeading, KIcon } from '../../components/common';
 import { useAuthStore } from '../../store/authStore';
 import {
   validateRegisterForm,
@@ -24,13 +23,12 @@ import {
 /**
  * screens/auth/RegisterScreen.tsx — Halaman pendaftaran pemilik car wash baru
  *
- * Alur:
- * 1. User isi semua field form
- * 2. Validasi client-side (validateRegisterForm)
- * 3. Panggil authStore.signUp → authService.signUp → Supabase
- * 4a. Email verification required → tampilkan SuccessView
- * 4b. Auto-confirmed → RootNavigator redirect ke Main
- * 5. Error → tampilkan error banner
+ * Mengikuti spesifikasi desain Kinclong Design System:
+ * - Layout: Scrollable dengan padding 0 22px
+ * - Background: DS.ink50 (#f8fafc)
+ * - Kelompok Form: Informasi Car Wash, Data Pemilik, Kata Sandi dalam Elevated Cards
+ * - Input Fields: Dilengkapi leftIcon (building, user, mail, phone, lock)
+ * - Check Email Screen (needsEmailVerification): Centered vertikal dengan 3 numbered steps DS.blueMid
  */
 
 type Props = AuthScreenProps<'Register'>;
@@ -56,13 +54,24 @@ const INITIAL_FORM: FormState = {
 export default function RegisterScreen({ navigation }: Props) {
   const { t }                                                          = useTranslation();
   const {
-    isLoading, error, needsEmailVerification, signUp, signInWithGoogle, clearError,
+    isLoading, error, needsEmailVerification, signUp, clearError,
   } = useAuthStore();
 
   const [form,   setForm]   = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<RegisterFormErrors>({});
 
   useEffect(() => () => { clearError(); }, []);
+
+  useEffect(() => {
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: error,
+        visibilityTime: 3500,
+      });
+      clearError();
+    }
+  }, [error, clearError]);
 
   // ── Handlers ────────────────────────────────────────────────────
 
@@ -90,36 +99,66 @@ export default function RegisterScreen({ navigation }: Props) {
     });
   };
 
-  const handleGoogleSignUp = async () => {
-    await signInWithGoogle();
-  };
-
-  // ── Email Verification Success View (tidak terpakai di mock — disiapkan untuk Supabase) ──
+  // ── Email Verification Success View (CheckEmailPage) ──
   if (needsEmailVerification) {
     return (
-      <SafeAreaView className="flex-1 bg-white" testID="register-email-sent-view">
-        <View className="flex-1 items-center justify-center px-8">
-          <View className="bg-green-100 rounded-full w-20 h-20 items-center justify-center mb-6">
-            <Text className="text-green-600 text-4xl">✉</Text>
+      <SafeAreaView className="flex-1 bg-slate-50" style={{ backgroundColor: '#f8fafc' }} testID="register-email-sent-view">
+        <View className="flex-1 items-center justify-center px-[22px]">
+          {/* Circular Mail Icon Container */}
+          <View className="rounded-full w-20 h-20 items-center justify-center mb-6" style={{ backgroundColor: '#dbeafe' }}>
+            <KIcon name="mail" size={36} color="#2563eb" />
           </View>
-          <TextHeading level="h3" className="text-center mb-3">
+          
+          <TextHeading level="h3" className="text-center mb-2 font-bold text-slate-800">
             Cek Inbox Anda!
           </TextHeading>
-          <Text className="text-slate-500 text-sm text-center leading-6 mb-2">
-            Kami telah mengirimkan email konfirmasi ke
+          
+          <Text className="text-slate-500 text-sm text-center leading-6 mb-8">
+            Kami telah mengirimkan email konfirmasi ke{'\n'}
+            <Text className="text-primary-600 font-bold">{form.email}</Text>
           </Text>
-          <Text className="text-primary-600 font-semibold text-center mb-6">
-            {form.email}
-          </Text>
-          <Text className="text-slate-400 text-xs text-center mb-8 leading-5">
-            Klik link di email tersebut untuk mengaktifkan akun Anda, lalu kembali dan masuk.
-          </Text>
+
+          {/* 3 Numbered Steps with DS.blueMid Badges */}
+          <View className="w-full gap-3 mb-8">
+            <View className="flex-row items-center gap-3.5 bg-white p-4 rounded-xl border border-slate-100/50 shadow-sm">
+              <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
+                <Text className="text-blue-600 font-bold text-sm">1</Text>
+              </View>
+              <Text className="text-slate-700 text-sm font-medium flex-1">Buka kotak masuk email Anda</Text>
+            </View>
+            <View className="flex-row items-center gap-3.5 bg-white p-4 rounded-xl border border-slate-100/50 shadow-sm">
+              <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
+                <Text className="text-blue-600 font-bold text-sm">2</Text>
+              </View>
+              <Text className="text-slate-700 text-sm font-medium flex-1">Cari email verifikasi dari Kinclong</Text>
+            </View>
+            <View className="flex-row items-center gap-3.5 bg-white p-4 rounded-xl border border-slate-100/50 shadow-sm">
+              <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
+                <Text className="text-blue-600 font-bold text-sm">3</Text>
+              </View>
+              <Text className="text-slate-700 text-sm font-medium flex-1">Klik tautan konfirmasi untuk verifikasi</Text>
+            </View>
+          </View>
+
           <Button
-            title="Kembali ke Halaman Masuk"
+            title="Masuk ke Akun"
             onPress={() => navigation.navigate('Login')}
             fullWidth
+            size="lg"
             testID="register-back-to-login-button"
           />
+
+          {/* Resend email ghost button */}
+          <TouchableOpacity
+            onPress={() => {}}
+            className="mt-4"
+            testID="register-resend-email"
+            activeOpacity={0.7}
+          >
+            <Text className="text-slate-400 text-sm font-bold">
+              Kirim ulang email
+            </Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -127,7 +166,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
   // ── Register Form ────────────────────────────────────────────────
   return (
-    <SafeAreaView className="flex-1 bg-white" testID="register-screen">
+    <SafeAreaView className="flex-1 bg-slate-50" style={{ backgroundColor: '#f8fafc' }} testID="register-screen">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -137,69 +176,38 @@ export default function RegisterScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="px-6 pt-6 pb-10">
-            {/* Back Button */}
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              className="flex-row items-center -ml-1 mb-6"
-              testID="register-back-button"
-            >
-              <Text className="text-primary-600 text-base">‹</Text>
-              <Text className="text-primary-600 text-sm font-medium ml-1">
-                {t('common.back')}
-              </Text>
-            </TouchableOpacity>
-
-            <TextHeading level="h3" className="mb-1">{t('auth.register')}</TextHeading>
-            <Text className="text-slate-500 text-sm mb-6">
-              {t('auth.register_subtitle')}
-            </Text>
-
-            {/* Server Error Banner */}
-            {error ? (
-              <View
-                className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 flex-row items-start"
-                testID="register-error-banner"
+          <View className="px-[22px] pt-4 pb-10">
+            {/* Header: Back Button & Logo */}
+            <View className="mb-6 relative justify-center items-center">
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                className="absolute left-0 top-0 p-2 -ml-2"
+                testID="register-back-button"
               >
-                <Text className="text-red-700 text-sm flex-1 leading-5">{error}</Text>
-                <TouchableOpacity
-                  onPress={clearError}
-                  className="ml-2 mt-0.5"
-                  testID="register-error-dismiss"
-                >
-                  <Text className="text-red-400 text-lg leading-none">×</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
+                <KIcon name="chevron-left" size={24} color="#64748b" />
+              </TouchableOpacity>
+              
+              <Image
+                source={require('../../assets/logo-kinclong-nb.webp')}
+                style={{ width: 140, height: 40 }}
+                resizeMode="contain"
+                testID="register-logo-image"
+              />
+            </View>
 
-            {/* ── Google OAuth Shortcut ──────────────────────────── */}
-            <TouchableOpacity
-              onPress={handleGoogleSignUp}
-              disabled={isLoading}
-              className={[
-                'flex-row items-center justify-center',
-                'border border-slate-200 rounded-xl py-3.5 bg-white mb-4',
-                isLoading ? 'opacity-50' : 'active:bg-slate-50',
-              ].join(' ')}
-              testID="register-google-button"
-            >
-              <View className="w-5 h-5 mr-3 items-center justify-center">
-                <Text className="text-lg font-bold" style={{ color: '#4285F4' }}>G</Text>
-              </View>
-              <Text className="text-slate-700 font-semibold text-base">
-                Daftar dengan Google
+            {/* Title & Subtitle */}
+            <View className="items-center mb-8">
+              <TextHeading level="h2" className="text-slate-900 font-bold text-center">
+                Buat akun baru
+              </TextHeading>
+              <Text className="text-slate-500 text-sm mt-1.5 text-center">
+                Trial 14 hari gratis · Tanpa kartu kredit
               </Text>
-            </TouchableOpacity>
-
-            <View className="flex-row items-center mb-5">
-              <View className="flex-1 h-px bg-slate-200" />
-              <Text className="text-slate-400 text-xs mx-3">atau isi formulir</Text>
-              <View className="flex-1 h-px bg-slate-200" />
             </View>
 
             {/* ── Informasi Car Wash ─────────────────────────── */}
-            <Card variant="outline" padding="md" className="mb-4">
-              <Text className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            <Card variant="elevated" padding="md" className="mb-4 bg-white border border-slate-100/50 shadow-sm">
+              <Text className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                 Informasi Car Wash
               </Text>
               <Input
@@ -209,14 +217,15 @@ export default function RegisterScreen({ navigation }: Props) {
                 onChangeText={updateField('carwashName')}
                 error={errors.carwashName}
                 required
+                leftIcon={<KIcon name="building" size={18} color="#94a3b8" />}
                 containerStyle={{ marginBottom: 0 }}
                 testID="register-carwash-input"
               />
             </Card>
 
             {/* ── Data Pemilik ───────────────────────────────── */}
-            <Card variant="outline" padding="md" className="mb-4">
-              <Text className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            <Card variant="elevated" padding="md" className="mb-4 bg-white border border-slate-100/50 shadow-sm">
+              <Text className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                 Data Pemilik
               </Text>
               <Input
@@ -226,6 +235,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 onChangeText={updateField('fullName')}
                 error={errors.fullName}
                 required
+                leftIcon={<KIcon name="user" size={18} color="#94a3b8" />}
                 testID="register-fullname-input"
               />
               <Input
@@ -239,6 +249,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 onChangeText={updateField('email')}
                 error={errors.email}
                 required
+                leftIcon={<KIcon name="mail" size={18} color="#94a3b8" />}
                 testID="register-email-input"
               />
               <Input
@@ -248,14 +259,15 @@ export default function RegisterScreen({ navigation }: Props) {
                 autoComplete="tel"
                 value={form.phone}
                 onChangeText={updateField('phone')}
+                leftIcon={<KIcon name="phone" size={18} color="#94a3b8" />}
                 containerStyle={{ marginBottom: 0 }}
                 testID="register-phone-input"
               />
             </Card>
 
             {/* ── Kata Sandi ─────────────────────────────────── */}
-            <Card variant="outline" padding="md" className="mb-6">
-              <Text className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            <Card variant="elevated" padding="md" className="mb-6 bg-white border border-slate-100/50 shadow-sm">
+              <Text className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                 Kata Sandi
               </Text>
               <Input
@@ -268,6 +280,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 error={errors.password}
                 hint="Gunakan kombinasi huruf, angka, dan simbol"
                 required
+                leftIcon={<KIcon name="lock" size={18} color="#94a3b8" />}
                 testID="register-password-input"
               />
               <Input
@@ -279,6 +292,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 onChangeText={updateField('confirmPassword')}
                 error={errors.confirmPassword}
                 required
+                leftIcon={<KIcon name="lock" size={18} color="#94a3b8" />}
                 containerStyle={{ marginBottom: 0 }}
                 testID="register-confirm-password-input"
               />
@@ -312,3 +326,4 @@ export default function RegisterScreen({ navigation }: Props) {
     </SafeAreaView>
   );
 }
+

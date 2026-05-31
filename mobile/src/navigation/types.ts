@@ -20,11 +20,13 @@ export type AuthStackParamList = {
 
 // ─── Main Bottom Tabs ─────────────────────────────────────────────────────────
 export type MainTabParamList = {
-  Dashboard: undefined;
   Queue: undefined;
-  Services: undefined;
   Reports: undefined;
-  Settings: undefined;
+  Vehicles: undefined;      // visible tab — Kendaraan
+  Dashboard: undefined;     // hidden tab, accessible via Lainnya sheet
+  Services: undefined;      // hidden tab, accessible via Lainnya sheet
+  Settings: undefined;      // hidden tab, accessible via Lainnya sheet
+  Team: undefined;          // hidden tab, accessible via Lainnya sheet
 };
 
 // ─── Root Stack ───────────────────────────────────────────────────────────────
@@ -32,8 +34,9 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
-  Kiosk: undefined;       // Mode kiosk tanpa bottom tab
-  Subscription: undefined; // Modal/screen upgrade plan
+  Kiosk: undefined;         // Mode kiosk tanpa bottom tab
+  Subscription: undefined;  // Modal/screen upgrade plan
+  VehicleDetail: { plate: string }; // Detail kendaraan + riwayat kunjungan
 };
 
 // ─── Screen Props Helpers ─────────────────────────────────────────────────────

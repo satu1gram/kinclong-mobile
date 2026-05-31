@@ -1,12 +1,13 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
-import AuthNavigator      from './AuthNavigator';
-import MainNavigator      from './MainNavigator';
-import KioskScreen        from '../screens/kiosk/KioskScreen';
-import SubscriptionScreen from '../screens/subscription/SubscriptionScreen';
-import Loading            from '../components/common/Loading';
-import { useAuthStore }   from '../store/authStore';
+import AuthNavigator       from './AuthNavigator';
+import MainNavigator       from './MainNavigator';
+import KioskScreen         from '../screens/kiosk/KioskScreen';
+import SubscriptionScreen  from '../screens/subscription/SubscriptionScreen';
+import VehicleDetailScreen from '../screens/vehicles/VehicleDetailScreen';
+import Loading             from '../components/common/Loading';
+import { useAuthStore }    from '../store/authStore';
 
 /**
  * navigation/RootNavigator.tsx — Root navigator + Auth Guard
@@ -46,6 +47,7 @@ export default function RootNavigator() {
             component={SubscriptionScreen}
             options={{ presentation: 'modal' }}
           />
+          <Stack.Screen name="VehicleDetail" component={VehicleDetailScreen} />
         </>
       ) : (
         // ── Unauthenticated: Auth Flow ───────────────────────────

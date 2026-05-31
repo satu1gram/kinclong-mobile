@@ -9,12 +9,15 @@ import { ExpoConfig } from 'expo/config';
 const config: ExpoConfig = {
   name: 'Kinclong',
   slug: 'kinclong',
+  owner: 'satulab',
   version: '1.0.0',
   orientation: 'portrait',
+  icon: './src/assets/icon.png',
   userInterfaceStyle: 'light',
   splash: {
+    image: './src/assets/logo-kinclong-nb.png',
     resizeMode: 'contain',
-    backgroundColor: '#1e40af',
+    backgroundColor: '#f8fafc',
   },
   ios: {
     supportsTablet: false,
@@ -22,6 +25,7 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
+      foregroundImage: './src/assets/adaptive-icon.png',
       backgroundColor: '#1e40af',
     },
     package: 'com.kinclong.app',
@@ -33,6 +37,9 @@ const config: ExpoConfig = {
   extra: {
     // Diakses melalui Constants.expoConfig?.extra (opsional)
     appVersion: '1.0.0',
+    eas: {
+      projectId: 'ed60866a-7f66-4bc3-9ec2-3353ed81c654',
+    },
   },
 };
 

@@ -69,9 +69,10 @@
     "status": "Status",
     "notes": "Catatan",
     "total_price": "Total Harga",
-    "waiting": "Menunggu",
-    "in_progress": "Dikerjakan",
+    "waiting": "Antri",
+    "in_progress": "Dicuci",
     "done": "Selesai",
+    "paid": "Lunas",
     "cancelled": "Dibatalkan",
     "vehicle_types": {
       "motor": "Motor",
@@ -81,9 +82,15 @@
       "truk": "Truk"
     },
     "empty_queue": "Tidak ada antrean saat ini",
-    "start_service": "Mulai",
+    "start_service": "Mulai Cuci",
     "complete_service": "Selesai",
-    "cancel_queue": "Batalkan"
+    "mark_paid": "Tandai Lunas",
+    "cancel_queue": "Batalkan",
+    "search_placeholder": "Cari plat nomor...",
+    "filter_all": "Semua",
+    "filter_active": "Aktif",
+    "filter_done": "Selesai",
+    "no_result": "Tidak ada hasil untuk pencarian ini"
   },
   "services": {
     "title": "Layanan",

@@ -17,6 +17,13 @@ export { TextHeading }  from './TextHeading';
 // Feedback / Status
 export { Badge }        from './Badge';
 
+// Overlays
+export { ActionSheet }  from './ActionSheet';
+
+// Icons
+export { default as KIcon } from './KIcon';
+export type { KIconName } from './KIcon';
+
 // Type exports
 export type { ButtonProps, ButtonVariant, ButtonSize }         from './Button';
 export type { CardProps, CardVariant, CardPadding }            from './Card';

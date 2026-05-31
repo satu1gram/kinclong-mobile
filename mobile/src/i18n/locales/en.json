@@ -70,8 +70,9 @@
     "notes": "Notes",
     "total_price": "Total Price",
     "waiting": "Waiting",
-    "in_progress": "In Progress",
+    "in_progress": "Washing",
     "done": "Done",
+    "paid": "Paid",
     "cancelled": "Cancelled",
     "vehicle_types": {
       "motor": "Motorcycle",
@@ -81,9 +82,15 @@
       "truk": "Truck"
     },
     "empty_queue": "No vehicles in queue",
-    "start_service": "Start",
-    "complete_service": "Complete",
-    "cancel_queue": "Cancel"
+    "start_service": "Start Wash",
+    "complete_service": "Mark Done",
+    "mark_paid": "Mark Paid",
+    "cancel_queue": "Cancel",
+    "search_placeholder": "Search plate number...",
+    "filter_all": "All",
+    "filter_active": "Active",
+    "filter_done": "Done",
+    "no_result": "No results for this search"
   },
   "services": {
     "title": "Services",

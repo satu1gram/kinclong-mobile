@@ -12,6 +12,7 @@ import type { AuthScreenProps } from '../../navigation/types';
 import { Button }      from '../../components/common/Button';
 import { Input }       from '../../components/common/Input';
 import { TextHeading } from '../../components/common/TextHeading';
+import KIcon           from '../../components/common/KIcon';
 import { useAuthStore } from '../../store/authStore';
 import { validateEmail } from '../../utils/validation';
 
@@ -120,7 +121,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
             {/* Icon */}
             <View className="bg-primary-50 rounded-2xl w-14 h-14 items-center justify-center mb-5">
-              <Text className="text-2xl">🔑</Text>
+              <KIcon name="lock" size={24} color="#2563eb" />
             </View>
 
             <TextHeading level="h3" className="mb-2">Lupa Kata Sandi?</TextHeading>

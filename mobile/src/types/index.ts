@@ -19,11 +19,58 @@ export interface User {
   full_name: string;
   role: UserRole;
   carwash_id: string;
+  // Backend context (populated after login)
+  tenant_id?: string;
+  outlet_id?: string;
   avatar_url?: string;
   phone?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// ─── Backend API Entities ─────────────────────────────────────────────────────
+
+/** Tenant = business account (dari backend /api/auth/login response) */
+export interface Tenant {
+  id:                  string;
+  name:                string;
+  slug?:               string;
+  subscriptionPlan:    'free' | 'starter' | 'pro' | 'enterprise';
+  subscriptionStatus:  'active' | 'trialing' | 'past_due' | 'cancelled' | 'suspended';
+  trialEndsAt?:        string;
+  trialDaysRemaining?: number;
+  maxVehicles?:        number | null;
+  maxUsers?:           number | null;
+  maxOutlets?:         number | null;
+  settings?: {
+    dashboardRetentionDays?: number;
+    enableWhatsapp?:         boolean;
+    enableLoyalty?:          boolean;
+    enableExport?:           boolean;
+  };
+}
+
+/** Outlet = physical location */
+export interface Outlet {
+  id:       string;
+  name:     string;
+  address?: string;
+  city?:    string;
+  phone?:   string;
+  isActive: boolean;
+}
+
+/** Profile = user profile from backend */
+export interface ApiProfile {
+  id:           string;
+  fullName:     string;
+  role:         UserRole;
+  tenantId:     string;
+  isSuperAdmin: boolean;
+  isActive:     boolean;
+  phone?:       string;
+  avatarUrl?:   string;
 }
 
 // ─── Car Wash (Outlet) ────────────────────────────────────────────────────────
@@ -45,7 +92,10 @@ export interface CarWash {
 
 export type VehicleType = 'motor' | 'mobil' | 'pickup' | 'bus' | 'truk';
 
-export type QueueStatus = 'waiting' | 'in_progress' | 'done' | 'cancelled';
+export type QueueStatus = 'waiting' | 'in_progress' | 'done' | 'paid' | 'cancelled';
+
+/** Backend status enum — dipakai di API layer */
+export type BackendQueueStatus = 'queued' | 'in_progress' | 'completed' | 'paid' | 'cancelled';
 
 export interface ServiceItem {
   service_id: string;
@@ -60,6 +110,7 @@ export interface QueueItem {
   vehicle_type: VehicleType;
   vehicle_plate: string;
   customer_name?: string;
+  brand?: string;
   services: ServiceItem[];
   status: QueueStatus;
   operator_id?: string;
@@ -74,6 +125,9 @@ export interface QueueItem {
 export interface Service {
   id: string;
   carwash_id: string;
+  category: string;
+  /** Backend category_id — opsional, diisi saat integrasi */
+  category_id?: string;
   name: string;
   description?: string;
   price: number;
@@ -82,6 +136,22 @@ export interface Service {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// ─── Vehicle History ──────────────────────────────────────────────────────────
+
+export interface VehicleSummary {
+  id?: string;           // backend vehicle UUID
+  plate: string;
+  brand?: string;
+  model?: string;
+  vehicle_type: VehicleType;
+  customer_name?: string;
+  customer_id?: string;
+  visit_count: number;
+  total_spent: number;
+  last_visit: string; // ISO string
+  first_visit: string; // ISO string
 }
 
 // ─── Reports ──────────────────────────────────────────────────────────────────

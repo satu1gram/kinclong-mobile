@@ -29,15 +29,16 @@ export const resources = {
 
 i18n.use(initReactI18next).init({
   resources,
-  lng: 'id',           // Default: Bahasa Indonesia
-  fallbackLng: 'en',   // Fallback ke English jika key tidak ada
+  lng: 'id',
+  fallbackLng: 'en',
   ns: ['translation'],
   defaultNS,
+  compatibilityJSON: 'v3', // fix Intl.PluralRules polyfill warning on RN
   interpolation: {
-    escapeValue: false, // React Native aman dari XSS
+    escapeValue: false,
   },
   react: {
-    useSuspense: false, // Nonaktifkan suspense untuk React Native
+    useSuspense: false,
   },
 });
 

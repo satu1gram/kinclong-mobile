@@ -1,211 +1,181 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import { Card } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
-import {
-  GreetingHeader,
-  RevenueCard,
-  MiniBarChart,
-} from '../../components/dashboard';
-import { useAuth } from '../../hooks/useAuth';
-import {
-  mockDashboardData,
-  formatRupiah,
-  type DashboardData,
-} from '../../lib/mockDashboardData';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import KIcon from '../../components/common/KIcon';
+import type { MainTabParamList } from '../../navigation/types';
+import { useAuthStore } from '../../store/authStore';
+import { GreetingHeader, RevenueCard, MiniBarChart } from '../../components/dashboard';
+import { mockDashboardData } from '../../lib/mockDashboardData';
 
-/**
- * screens/dashboard/DashboardScreen.tsx — Dashboard Owner (Phase 4)
- *
- * Layar utama untuk pemilik car wash dengan ringkasan bisnis hari ini:
- * - Greeting dinamis (Pagi/Siang/Sore/Malam)
- * - Omzet hari ini (highlight) + total kendaraan
- * - Grafik mingguan (7 hari terakhir)
- * - Breakdown jenis kendaraan
- * - Layanan terlaris
- * - Quick stats: antrean aktif
- *
- * Data masih MOCKED (`mockDashboardData`). Saat backend siap, ganti
- * dengan fetch dari Supabase / API — komponen tetap sama.
- */
-
-// Pendapatan kemarin untuk hitung trend (h-2 dari weeklyRevenue)
-function getYesterdayRevenue(data: DashboardData): number {
-  return data.weeklyRevenue[data.weeklyRevenue.length - 2]?.revenue ?? 0;
-}
-
-function sumWeekly(data: DashboardData): number {
-  return data.weeklyRevenue.reduce((acc, p) => acc + p.revenue, 0);
-}
+type Range = 'today' | '7d' | '30d';
 
 export default function DashboardScreen() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const { user } = useAuthStore();
+  const [range, setRange] = useState<Range>('today');
 
-  // Simulasi refresh — di production akan re-fetch dari backend
-  const [data] = useState<DashboardData>(mockDashboardData);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 700);
-  }, []);
-
-  const yesterdayRevenue = useMemo(() => getYesterdayRevenue(data), [data]);
-  const weeklyTotal      = useMemo(() => sumWeekly(data), [data]);
-  const maxVehicleCount  = useMemo(
-    () => Math.max(...data.vehicleStats.map((v) => v.count), 1),
-    [data]
-  );
+  const userName = user?.full_name || 'Pengguna';
+  const userSubtitle = user?.role === 'owner' ? 'Pemilik Carwash' : 'Operator Staff';
 
   return (
-    <SafeAreaView
-      className="flex-1 bg-slate-50"
-      edges={['top']}
-      testID="dashboard-screen"
-    >
+    <SafeAreaView testID="dashboard-screen" className="flex-1" style={{ backgroundColor: '#f8fafc' }} edges={['top']}>
+      {/* Greeting Header */}
+      <GreetingHeader name={userName} subtitle={userSubtitle} />
+
       <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 14, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#3B82F6"
-          />
-        }
       >
-        {/* ── Greeting ─────────────────────────────────────────── */}
-        <GreetingHeader
-          name={user?.full_name ?? 'Pengguna'}
-          subtitle={t('dashboard.welcome_subtitle')}
-        />
-
-        <View className="px-5 -mt-6">
-          {/* ── Omzet Hari Ini (Featured) ─────────────────────── */}
-          <RevenueCard
-            label={t('dashboard.revenue_today')}
-            value={data.dailyRevenue}
-            previous={yesterdayRevenue}
-            featured
-            testID="card-daily-revenue"
-          />
-
-          {/* ── Quick Stats Grid ──────────────────────────────── */}
-          <View className="flex-row gap-3 mt-4">
-            <View className="flex-1">
-              <Card variant="outline" padding="md" testID="card-total-vehicles">
-                <Text className="text-slate-500 text-xs font-medium">
-                  {t('dashboard.total_vehicles')}
-                </Text>
-                <View className="flex-row items-end mt-1.5">
-                  <Text className="text-slate-800 text-2xl font-bold">
-                    {data.totalVehicles}
-                  </Text>
-                  <Text className="text-slate-400 text-xs ml-1.5 mb-1">
-                    kendaraan
-                  </Text>
-                </View>
-              </Card>
+        {/* Trial Banner */}
+        <View
+          className="rounded-2xl p-4 mb-4 flex-row items-center justify-between"
+          style={{ backgroundColor: '#f59e0b' }}
+        >
+          <View>
+            <View className="flex-row items-center gap-1.5 mb-0.5">
+              <KIcon name="crown" size={13} color="#fff" />
+              <Text className="text-white font-bold text-sm">Trial Pro · 9 hari tersisa</Text>
             </View>
-            <View className="flex-1">
-              <Card variant="outline" padding="md" testID="card-active-queue">
-                <Text className="text-slate-500 text-xs font-medium">
-                  {t('dashboard.active_queue')}
-                </Text>
-                <View className="flex-row items-end mt-1.5">
-                  <Text className="text-slate-800 text-2xl font-bold">
-                    {data.activeQueue}
-                  </Text>
-                  <Text className="text-slate-400 text-xs ml-1.5 mb-1">
-                    antrean
-                  </Text>
-                </View>
-              </Card>
+            <Text className="text-white/75 text-xs mt-0.5">Upgrade untuk akses penuh tanpa batas</Text>
+          </View>
+          <TouchableOpacity
+            className="px-3 py-1.5 rounded-xl"
+            style={{ backgroundColor: '#fff' }}
+          >
+            <Text className="font-bold text-xs" style={{ color: '#f59e0b' }}>Upgrade</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Range Filter */}
+        <View
+          className="flex-row rounded-xl p-0.5 mb-4"
+          style={{ backgroundColor: '#f1f5f9' }}
+        >
+          {([
+            { id: 'today', label: 'Hari Ini' },
+            { id: '7d',    label: '7 Hari'   },
+            { id: '30d',   label: '30 Hari'  },
+          ] as { id: Range; label: string }[]).map((r) => (
+            <TouchableOpacity
+              key={r.id}
+              onPress={() => setRange(r.id)}
+              className="flex-1 items-center py-2 rounded-xl"
+              style={{
+                backgroundColor: range === r.id ? '#fff' : 'transparent',
+                shadowColor: range === r.id ? '#0f172a' : undefined,
+                shadowOffset: range === r.id ? { width: 0, height: 1 } : undefined,
+                shadowOpacity: range === r.id ? 0.08 : 0,
+                shadowRadius: range === r.id ? 4 : 0,
+                elevation: range === r.id ? 2 : 0,
+              }}
+            >
+              <Text
+                className="text-xs font-bold"
+                style={{ color: range === r.id ? '#0f172a' : '#94a3b8' }}
+              >
+                {r.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Metrics Grid */}
+        <View className="flex-row gap-3 mb-3">
+          <View className="flex-1">
+            <RevenueCard
+              testID="card-daily-revenue"
+              label="Omzet Hari Ini"
+              value={1850000}
+              previous={1650000}
+              featured
+            />
+          </View>
+        </View>
+
+        <View className="flex-row gap-3 mb-4">
+          <View className="flex-1">
+            <RevenueCard
+              testID="card-total-vehicles"
+              label="Total Kendaraan"
+              value={12}
+              previous={10}
+            />
+          </View>
+          <View className="flex-1">
+            <RevenueCard
+              testID="card-active-queue"
+              label="Antrian Aktif"
+              value={4}
+              previous={3}
+            />
+          </View>
+        </View>
+
+        {/* Weekly Chart */}
+        <View testID="card-weekly-chart" className="mb-4">
+          <MiniBarChart
+            data={mockDashboardData.weeklyRevenue}
+          />
+        </View>
+
+        {/* Vehicle Breakdown Card */}
+        <View
+          testID="card-vehicle-breakdown"
+          className="bg-white rounded-2xl p-4 mb-4"
+          style={{ borderWidth: 1, borderColor: '#f1f5f9' }}
+        >
+          <Text className="text-slate-800 font-bold text-sm mb-3">Statistik Kendaraan</Text>
+          <View className="flex-row justify-between flex-wrap gap-2">
+            <View testID="vehicle-stat-motor" className="items-center p-2 rounded-xl bg-slate-50 flex-1 min-w-[70px]">
+              <Text className="text-slate-400 text-xs mb-1">Motor</Text>
+              <Text className="text-slate-800 font-bold text-base">5</Text>
+            </View>
+            <View testID="vehicle-stat-mobil" className="items-center p-2 rounded-xl bg-slate-50 flex-1 min-w-[70px]">
+              <Text className="text-slate-400 text-xs mb-1">Mobil</Text>
+              <Text className="text-slate-800 font-bold text-base">7</Text>
+            </View>
+            <View testID="vehicle-stat-pickup" className="items-center p-2 rounded-xl bg-slate-50 flex-1 min-w-[70px]">
+              <Text className="text-slate-400 text-xs mb-1">Pickup</Text>
+              <Text className="text-slate-800 font-bold text-base">2</Text>
+            </View>
+            <View testID="vehicle-stat-bus" className="items-center p-2 rounded-xl bg-slate-50 flex-1 min-w-[70px]">
+              <Text className="text-slate-400 text-xs mb-1">Bus</Text>
+              <Text className="text-slate-800 font-bold text-base">0</Text>
+            </View>
+            <View testID="vehicle-stat-truk" className="items-center p-2 rounded-xl bg-slate-50 flex-1 min-w-[70px]">
+              <Text className="text-slate-400 text-xs mb-1">Truk</Text>
+              <Text className="text-slate-800 font-bold text-base">1</Text>
             </View>
           </View>
-
-          {/* ── Grafik Mingguan ───────────────────────────────── */}
-          <Card padding="md" className="mt-4" testID="card-weekly-chart">
-            <View className="flex-row items-start justify-between mb-3">
-              <View className="flex-1 pr-2">
-                <Text className="text-slate-800 font-semibold text-base">
-                  {t('dashboard.weekly_revenue')}
-                </Text>
-                <Text className="text-slate-400 text-xs mt-0.5">
-                  Total {formatRupiah(weeklyTotal)}
-                </Text>
-              </View>
-              <Badge variant="primary" size="sm">7 hari</Badge>
-            </View>
-            <MiniBarChart data={data.weeklyRevenue} height={130} />
-          </Card>
-
-          {/* ── Breakdown Jenis Kendaraan ─────────────────────── */}
-          <Card padding="md" className="mt-4" testID="card-vehicle-breakdown">
-            <Text className="text-slate-800 font-semibold text-base mb-3">
-              {t('dashboard.by_vehicle_type')}
-            </Text>
-            {data.vehicleStats.map((stat) => {
-              const ratio = stat.count / maxVehicleCount;
-              return (
-                <View
-                  key={stat.type}
-                  className="mb-3 last:mb-0"
-                  testID={`vehicle-stat-${stat.type}`}
-                >
-                  <View className="flex-row justify-between mb-1.5">
-                    <Text className="text-slate-700 text-sm font-medium">
-                      {stat.label}
-                    </Text>
-                    <Text className="text-slate-500 text-sm">
-                      {stat.count}
-                    </Text>
-                  </View>
-                  <View className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <View
-                      className="h-full bg-primary-500 rounded-full"
-                      style={{ width: `${Math.max(ratio * 100, 4)}%` }}
-                    />
-                  </View>
-                </View>
-              );
-            })}
-          </Card>
-
-          {/* ── Layanan Terlaris ──────────────────────────────── */}
-          <Card
-            padding="md"
-            className="mt-4"
-            testID="card-popular-service"
-          >
-            <View className="flex-row items-start justify-between mb-2">
-              <Text className="text-slate-800 font-semibold text-base">
-                {t('dashboard.popular_service')}
-              </Text>
-              <Badge variant="warning" size="sm" dot>Top</Badge>
-            </View>
-            <Text className="text-accent-600 text-xl font-bold mt-1">
-              {data.popularService.name}
-            </Text>
-            <View className="flex-row mt-3">
-              <View className="flex-1 pr-3 border-r border-slate-100">
-                <Text className="text-slate-400 text-xs">Transaksi</Text>
-                <Text className="text-slate-800 text-base font-semibold mt-0.5">
-                  {data.popularService.count}×
-                </Text>
-              </View>
-              <View className="flex-1 pl-3">
-                <Text className="text-slate-400 text-xs">Pendapatan</Text>
-                <Text className="text-slate-800 text-base font-semibold mt-0.5">
-                  {formatRupiah(data.popularService.revenue)}
-                </Text>
-              </View>
-            </View>
-          </Card>
         </View>
+
+        {/* Popular Service Card */}
+        <View
+          testID="card-popular-service"
+          className="bg-white rounded-2xl p-4 mb-4"
+          style={{ borderWidth: 1, borderColor: '#f1f5f9' }}
+        >
+          <Text className="text-slate-800 font-bold text-sm mb-3">Layanan Terpopuler</Text>
+          <View className="flex-row justify-between items-center bg-blue-50/50 p-3 rounded-xl">
+            <View>
+              <Text className="text-slate-950 font-bold text-sm">Cuci Mobil Premium</Text>
+              <Text className="text-slate-400 text-xs mt-0.5">Paling sering dipesan hari ini</Text>
+            </View>
+            <Text className="text-blue-600 font-extrabold text-base">8×</Text>
+          </View>
+        </View>
+
+        {/* Navigation Link to Queue */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Queue')}
+          className="flex-row items-center justify-center gap-2 bg-blue-600 rounded-2xl py-3.5"
+        >
+          <KIcon name="queue" size={15} color="#fff" />
+          <Text className="text-white font-bold text-sm">Buka Antrian</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

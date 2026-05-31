@@ -1,122 +1,145 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View, Text, ScrollView, TouchableOpacity, TextInput, Switch, Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import { Card } from '../../components/common/Card';
 import { useAuth } from '../../hooks/useAuth';
-import { useI18n } from '../../hooks/useI18n';
+import KIcon from '../../components/common/KIcon';
 
-/**
- * screens/settings/SettingsScreen.tsx
- *
- * Pengaturan aplikasi:
- * - Kartu profil pengguna & role
- * - Toggle bahasa (ID ↔ EN)
- * - Menu: Profil, Tim, Outlet, Notifikasi, Keamanan, Tentang
- * - Tombol logout
- *
- * TODO Phase 2: Edit profil & upload avatar
- * TODO Phase 2: Manajemen tim (invite, role assign)
- */
+// ─── Section Card ─────────────────────────────────────────────────────────────
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View
+      className="bg-white rounded-2xl overflow-hidden mb-3"
+      style={{ borderWidth: 1, borderColor: '#f1f5f9' }}
+    >
+      <View
+        className="px-4 py-2.5"
+        style={{ borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}
+      >
+        <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest">{title}</Text>
+      </View>
+      <View className="px-4 py-3 gap-3">{children}</View>
+    </View>
+  );
+}
+
+// ─── Toggle Row ───────────────────────────────────────────────────────────────
+
+function ToggleRow({ label, defaultOn = false }: { label: string; defaultOn?: boolean }) {
+  const [on, setOn] = useState(defaultOn);
+  return (
+    <View className="flex-row items-center justify-between">
+      <Text className="text-slate-800 text-sm font-medium flex-1 mr-3">{label}</Text>
+      <Switch
+        value={on}
+        onValueChange={setOn}
+        trackColor={{ false: '#e2e8f0', true: '#2563eb' }}
+        thumbColor="#ffffff"
+        ios_backgroundColor="#e2e8f0"
+      />
+    </View>
+  );
+}
+
+// ─── Settings Input ───────────────────────────────────────────────────────────
+
+function SettingsInput({
+  label, defaultValue, multiline,
+}: { label: string; defaultValue: string; multiline?: boolean }) {
+  const [val, setVal] = useState(defaultValue);
+  return (
+    <View>
+      <Text className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1.5">{label}</Text>
+      <TextInput
+        value={val}
+        onChangeText={setVal}
+        multiline={multiline}
+        numberOfLines={multiline ? 2 : 1}
+        className="rounded-xl px-3.5 py-2.5 text-slate-800 text-sm"
+        style={{
+          borderWidth: 1.5,
+          borderColor: '#e2e8f0',
+          minHeight: multiline ? 60 : undefined,
+          textAlignVertical: multiline ? 'top' : 'center',
+        }}
+      />
+    </View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
-  const { t } = useTranslation();
-  const { user, signOut } = useAuth();
-  const { switchLanguage, currentLanguage } = useI18n();
+  const { signOut } = useAuth();
 
   const handleLogout = () => {
-    Alert.alert(t('settings.logout'), t('settings.logout_confirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.yes'), onPress: signOut, style: 'destructive' },
+    Alert.alert('Keluar dari Akun', 'Anda yakin ingin keluar?', [
+      { text: 'Batal', style: 'cancel' },
+      { text: 'Keluar', style: 'destructive', onPress: signOut },
     ]);
   };
 
-  const menuItems = [
-    { label: t('settings.profile'),       icon: '👤' },
-    { label: t('settings.team'),          icon: '👥' },
-    { label: t('settings.outlet'),        icon: '🏪' },
-    { label: t('settings.notifications'), icon: '🔔' },
-    { label: t('settings.security'),      icon: '🔒' },
-    { label: t('settings.about'),         icon: 'ℹ️' },
-  ];
-
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
-      <View className="bg-white border-b border-slate-100 px-5 py-4">
-        <Text className="text-xl font-bold text-slate-800">{t('settings.title')}</Text>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: '#f8fafc' }} edges={['top']}>
+      {/* Header */}
+      <View className="bg-white border-b border-slate-100 px-4 pt-3 pb-3 flex-row items-center">
+        <View className="flex-1">
+          <Text className="text-slate-400 text-xs font-bold uppercase tracking-widest">Kinclong Purwokerto</Text>
+          <Text className="text-slate-900 text-lg font-bold mt-0.5">Pengaturan</Text>
+        </View>
       </View>
 
-      <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <Card padding="md" className="mb-4">
-          <View className="flex-row items-center">
-            <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mr-3">
-              <Text className="text-blue-800 text-xl font-bold">
-                {user?.full_name?.charAt(0)?.toUpperCase() ?? '?'}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="font-semibold text-slate-800">{user?.full_name ?? '-'}</Text>
-              <Text className="text-slate-500 text-sm">{user?.email ?? '-'}</Text>
-              <View className="bg-blue-100 rounded-full px-2 py-0.5 mt-1 self-start">
-                <Text className="text-blue-800 text-xs font-semibold capitalize">
-                  {user?.role ?? '-'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </Card>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 14, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Profil Outlet */}
+        <SectionCard title="Profil Outlet">
+          <SettingsInput label="Nama Outlet" defaultValue="Kinclong Purwokerto" />
+          <SettingsInput label="No. Telepon" defaultValue="0812-3456-7890" />
+          <SettingsInput label="Alamat" defaultValue="Jl. Jenderal Soedirman No. 45, Purwokerto" multiline />
+          <TouchableOpacity
+            className="w-full py-3 rounded-xl items-center mt-1"
+            style={{ backgroundColor: '#2563eb' }}
+          >
+            <Text className="text-white font-bold text-sm">✓ Simpan Perubahan</Text>
+          </TouchableOpacity>
+        </SectionCard>
 
-        {/* Language Toggle */}
-        <Card padding="md" className="mb-4">
-          <Text className="font-semibold text-slate-700 mb-3">{t('settings.language')}</Text>
-          <View className="flex-row gap-3">
-            {(['id', 'en'] as const).map((lang) => (
-              <TouchableOpacity
-                key={lang}
-                onPress={() => switchLanguage(lang)}
-                className={`flex-1 items-center py-2.5 rounded-xl border-2 ${
-                  currentLanguage === lang
-                    ? 'bg-blue-800 border-blue-800'
-                    : 'bg-white border-slate-200'
-                }`}
-              >
-                <Text
-                  className={`font-semibold text-sm ${
-                    currentLanguage === lang ? 'text-white' : 'text-slate-500'
-                  }`}
-                >
-                  {t(`settings.language_options.${lang}`)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Card>
+        {/* Kebijakan Antrian */}
+        <SectionCard title="Kebijakan Antrian">
+          <ToggleRow label="Terima antrian walk-in" defaultOn />
+          <ToggleRow label="Mode kiosk self-service" defaultOn />
+          <ToggleRow label="Notifikasi status via WhatsApp" />
+        </SectionCard>
 
-        {/* Menu List */}
-        <Card padding="none" className="mb-4 overflow-hidden">
-          {menuItems.map((item, i) => (
-            <TouchableOpacity
-              key={i}
-              className={`flex-row items-center px-4 py-3.5 ${
-                i < menuItems.length - 1 ? 'border-b border-slate-50' : ''
-              }`}
-            >
-              <Text className="text-lg mr-3">{item.icon}</Text>
-              <Text className="flex-1 text-slate-700">{item.label}</Text>
-              <Text className="text-slate-300 text-lg">›</Text>
-            </TouchableOpacity>
-          ))}
-        </Card>
+        {/* Pembayaran */}
+        <SectionCard title="Pembayaran">
+          <ToggleRow label="Terima pembayaran tunai" defaultOn />
+          <ToggleRow label="Terima QRIS / Transfer bank" defaultOn />
+          <ToggleRow label="Cetak struk otomatis" />
+        </SectionCard>
 
-        {/* Logout */}
-        <TouchableOpacity
-          onPress={handleLogout}
-          className="flex-row items-center bg-red-50 border border-red-100 rounded-2xl px-4 py-3.5 mb-8"
-        >
-          <Text className="text-lg mr-3">🚪</Text>
-          <Text className="text-red-600 font-semibold">{t('settings.logout')}</Text>
-        </TouchableOpacity>
+        {/* Keamanan */}
+        <SectionCard title="Keamanan">
+          <ToggleRow label="PIN operator (akses kiosk)" />
+          <ToggleRow label="2FA untuk login owner" defaultOn />
+        </SectionCard>
+
+        {/* Bahaya */}
+        <SectionCard title="Bahaya">
+          <TouchableOpacity
+            onPress={handleLogout}
+            className="w-full py-3 rounded-xl items-center flex-row justify-center gap-2"
+            style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' }}
+          >
+            <KIcon name="logout" size={18} color="#ef4444" />
+            <Text className="text-red-600 font-bold text-sm">Keluar dari Akun</Text>
+          </TouchableOpacity>
+        </SectionCard>
       </ScrollView>
     </SafeAreaView>
   );

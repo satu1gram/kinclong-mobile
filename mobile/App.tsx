@@ -7,6 +7,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import RootNavigator from './src/navigation/RootNavigator';
 import './src/i18n/i18n.config';
 import { useAuthStore } from './src/store/authStore';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/components/common/KToastConfig';
 
 /**
  * App.tsx - Entry point utama aplikasi Kinclong
@@ -31,6 +33,7 @@ export default function App() {
         <RootNavigator />
         <StatusBar style="auto" />
       </NavigationContainer>
+      <Toast config={toastConfig} topOffset={62} />
     </SafeAreaProvider>
   );
 }

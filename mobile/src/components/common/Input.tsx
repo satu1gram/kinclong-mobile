@@ -4,9 +4,11 @@ import {
   TextInput,
   Text,
   TouchableOpacity,
+  Platform,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import KIcon from './KIcon';
 
 /**
  * Input — Field input form yang reusable
@@ -83,11 +85,17 @@ export function Input({
     ? 'border-primary-500'
     : 'border-slate-200';
 
+  const iconColor = error
+    ? '#f87171' // red-400
+    : isFocused
+    ? '#3b82f6' // primary-500
+    : '#94a3b8'; // slate-400
+
   return (
     <View className="mb-4" style={containerStyle}>
       {/* ── Label ─────────────────────────────────────────────────── */}
       {label && (
-        <Text className="text-sm font-medium text-slate-700 mb-1.5">
+        <Text className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
           {label}
           {required && <Text className="text-red-500"> *</Text>}
         </Text>
@@ -96,17 +104,27 @@ export function Input({
       {/* ── Input Row ─────────────────────────────────────────────── */}
       <View
         className={[
-          'flex-row items-center border rounded-xl px-3 bg-white',
+          'flex-row items-center border rounded-xl px-3 bg-white min-h-[48px]',
           borderClass,
           !editable ? 'bg-slate-50 opacity-60' : '',
         ].join(' ')}
       >
-        {leftIcon && <View className="mr-2">{leftIcon}</View>}
+        {leftIcon && (
+          <View className="mr-2">
+            {React.isValidElement(leftIcon)
+              ? React.cloneElement(leftIcon as React.ReactElement<any>, { color: iconColor })
+              : leftIcon}
+          </View>
+        )}
 
         <TextInput
+          style={[
+            Platform.OS === 'android' && { paddingVertical: 0 },
+            props.style,
+          ]}
           className={[
-            'flex-1 py-3 text-base text-slate-800',
-            multiline ? 'min-h-[80px]' : '',
+            'flex-1 text-[16px] text-slate-800',
+            multiline ? 'min-h-[80px] py-3' : (Platform.OS === 'ios' ? 'py-3' : 'h-12'),
             className ?? '',
           ].join(' ')}
           secureTextEntry={isPassword && !showPassword}
@@ -126,14 +144,18 @@ export function Input({
             onPress={() => setShowPassword((p) => !p)}
             className="px-1 py-2"
           >
-            <Text className="text-slate-400 text-xs font-medium">
-              {showPassword ? 'Sembunyikan' : 'Tampilkan'}
-            </Text>
+            <KIcon name={showPassword ? 'eye-off' : 'eye'} size={18} color={iconColor} />
           </TouchableOpacity>
         )}
 
         {/* Right icon (hanya jika bukan password) */}
-        {!isPassword && rightIcon && <View className="ml-2">{rightIcon}</View>}
+        {!isPassword && rightIcon && (
+          <View className="ml-2">
+            {React.isValidElement(rightIcon)
+              ? React.cloneElement(rightIcon as React.ReactElement<any>, { color: iconColor })
+              : rightIcon}
+          </View>
+        )}
       </View>
 
       {/* ── Feedback Text ─────────────────────────────────────────── */}

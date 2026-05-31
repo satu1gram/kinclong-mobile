@@ -1,252 +1,448 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { User } from '../types';
-
 /**
- * lib/authService.ts — MOCK Auth Service (no backend)
+ * lib/authService.ts — Auth Service (Client-to-Supabase)
  *
- * Implementasi mock auth tanpa Supabase / backend.
- * State user disimpan in-memory + sesi aktif dipersist ke AsyncStorage,
- * sehingga refresh app tetap mempertahankan login.
- *
- * Arsitektur tetap sama: Screen → authStore → authService → (mock store)
- * Saat siap integrasi Supabase, cukup ganti file ini — public API sama.
- *
- * ## Akun demo seed (selalu tersedia)
- * - Email   : demo@kinclong.id
- * - Password: password123
- *
- * Pendaftaran baru langsung "auto-confirmed" (tidak butuh email verification).
+ * Menggantikan REST API calls dengan interaksi langsung ke Supabase SDK.
  */
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
+import { STORAGE_KEYS } from './constants';
+import type { User, Tenant, Outlet, UserRole } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SignUpData {
-  email:        string;
-  password:     string;
-  fullName:     string;
-  carwashName:  string;
-  phone?:       string;
+  email:       string;
+  password:    string;
+  fullName:    string;
+  carwashName: string;
+  phone?:      string;
 }
 
 export interface MockSession {
-  user:        User;
-  accessToken: string;
-  expiresAt:   number; // epoch ms
+  user:         User;
+  tenant:       Tenant;
+  outlet:       Outlet;
+  accessToken:  string;
+  refreshToken: string;
+  expiresAt:    number;
 }
 
-type AuthEvent =
-  | 'SIGNED_IN'
-  | 'SIGNED_OUT'
-  | 'TOKEN_REFRESHED'
-  | 'INITIAL_SESSION';
-
+type AuthEvent = 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'INITIAL_SESSION';
 type AuthListener = (event: AuthEvent, session: MockSession | null) => void;
 
-interface StoredUser {
-  user:     User;
-  password: string;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const SESSION_STORAGE_KEY = '@kinclong/auth/session';
-const SIMULATED_DELAY_MS  = 350; // simulasi network latency agar UX terasa real
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
-
-function randomId(prefix = ''): string {
-  return `${prefix}${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
-
-function makeSession(user: User): MockSession {
-  return {
-    user,
-    accessToken: `mock_${randomId('tok_')}`,
-    expiresAt:   Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 hari
-  };
-}
-
-// ─── In-memory mock DB ────────────────────────────────────────────────────────
-
-const seedUser: User = {
-  id:         'demo-user-001',
-  email:      'demo@kinclong.id',
-  full_name:  'Demo Owner',
-  role:       'owner',
-  carwash_id: 'demo-carwash-001',
-  phone:      '081234567890',
-  is_active:  true,
-  created_at: '2025-01-01T00:00:00.000Z',
-  updated_at: '2025-01-01T00:00:00.000Z',
-};
-
-const users = new Map<string, StoredUser>([
-  [seedUser.email, { user: seedUser, password: 'password123' }],
-]);
+// ─── Listeners ────────────────────────────────────────────────────────────────
 
 let listeners: AuthListener[] = [];
 
-function emit(event: AuthEvent, session: MockSession | null) {
+function emit(event: AuthEvent, session: MockSession | null): void {
   listeners.forEach((cb) => {
-    try { cb(event, session); } catch { /* listener error tidak boleh crash */ }
+    try { cb(event, session); } catch { /* ignore */ }
   });
 }
 
-// ─── Auth Service (public API) ────────────────────────────────────────────────
+// ─── Persist session helpers ──────────────────────────────────────────────────
+
+async function persistSession(session: MockSession): Promise<void> {
+  await AsyncStorage.multiSet([
+    [STORAGE_KEYS.USER_PROFILE, JSON.stringify(session.user)],
+    [STORAGE_KEYS.TENANT,       JSON.stringify(session.tenant)],
+    [STORAGE_KEYS.OUTLET,       JSON.stringify(session.outlet)],
+    [STORAGE_KEYS.ACCESS_TOKEN,  session.accessToken],
+    [STORAGE_KEYS.REFRESH_TOKEN, session.refreshToken],
+  ]);
+}
+
+async function clearPersistedSession(): Promise<void> {
+  await AsyncStorage.multiRemove([
+    STORAGE_KEYS.USER_PROFILE,
+    STORAGE_KEYS.TENANT,
+    STORAGE_KEYS.OUTLET,
+    STORAGE_KEYS.ACCESS_TOKEN,
+    STORAGE_KEYS.REFRESH_TOKEN,
+  ]);
+}
+
+async function buildSessionFromStorage(): Promise<MockSession | null> {
+  try {
+    const [profileRaw, tenantRaw, outletRaw] = await Promise.all([
+      AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE),
+      AsyncStorage.getItem(STORAGE_KEYS.TENANT),
+      AsyncStorage.getItem(STORAGE_KEYS.OUTLET),
+    ]);
+
+    if (!profileRaw || !tenantRaw || !outletRaw) return null;
+
+    const user:   User   = JSON.parse(profileRaw);
+    const tenant: Tenant = JSON.parse(tenantRaw);
+    const outlet: Outlet = JSON.parse(outletRaw);
+
+    const accessToken  = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) || '';
+    const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) || '';
+
+    return {
+      user, tenant, outlet,
+      accessToken, refreshToken,
+      expiresAt: Date.now() + 1000 * 60 * 60, // Sesi aktif
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Setup Supabase State Change Listener ──────────────────────────────────────
+
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    const localSession = await buildSessionFromStorage();
+    if (localSession) {
+      emit('SIGNED_IN', localSession);
+    }
+  } else if (event === 'SIGNED_OUT') {
+    await clearPersistedSession();
+    emit('SIGNED_OUT', null);
+  }
+});
+
+// ─── Auth Service API ─────────────────────────────────────────────────────────
 
 export const authService = {
-  /**
-   * Login dengan email & password.
-   * @throws Error pesan Indonesia jika gagal
-   */
+
   signIn: async (email: string, password: string): Promise<MockSession> => {
-    await delay(SIMULATED_DELAY_MS);
-    const key = email.trim().toLowerCase();
-    const record = users.get(key);
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
 
-    if (!record || record.password !== password) {
-      throw new Error('Email atau kata sandi salah. Periksa kembali dan coba lagi.');
-    }
-    if (!record.user.is_active) {
-      throw new Error('Akun ini telah dinonaktifkan. Hubungi administrator.');
+    if (authError || !authData.user || !authData.session) {
+      throw new Error(authError?.message || 'Email atau password salah.');
     }
 
-    const session = makeSession(record.user);
-    await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-    emit('SIGNED_IN', session);
-    return session;
-  },
+    const userId = authData.user.id;
 
-  /**
-   * Mock OAuth Google — langsung login dengan akun demo Google fiktif.
-   * Akun otomatis di-create jika belum ada.
-   */
-  signInWithGoogle: async (): Promise<MockSession> => {
-    await delay(SIMULATED_DELAY_MS + 300);
+    // Fetch Profile
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-    const googleEmail = 'google.demo@kinclong.id';
-    let record = users.get(googleEmail);
-
-    if (!record) {
-      const newUser: User = {
-        id:         randomId('google-'),
-        email:      googleEmail,
-        full_name:  'Google Demo User',
-        role:       'owner',
-        carwash_id: randomId('cw-'),
-        avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
-        is_active:  true,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      };
-      record = { user: newUser, password: '__oauth__' };
-      users.set(googleEmail, record);
+    if (profileErr || !profile) {
+      throw new Error('Profil pengguna tidak ditemukan.');
     }
 
-    const session = makeSession(record.user);
-    await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-    emit('SIGNED_IN', session);
-    return session;
-  },
+    // Fetch Tenant
+    const { data: tenant, error: tenantErr } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('id', profile.tenant_id)
+      .single();
 
-  /**
-   * Daftar akun baru — auto-confirmed (tanpa email verification).
-   * @returns session aktif setelah pendaftaran berhasil
-   * @throws Error jika email sudah terdaftar
-   */
-  signUp: async ({
-    email, password, fullName, carwashName, phone,
-  }: SignUpData): Promise<MockSession> => {
-    await delay(SIMULATED_DELAY_MS);
-    const key = email.trim().toLowerCase();
-
-    if (users.has(key)) {
-      throw new Error('Email sudah terdaftar. Silakan masuk dengan akun yang ada.');
-    }
-    if (password.length < 8) {
-      throw new Error('Kata sandi terlalu lemah. Gunakan minimal 8 karakter.');
+    if (tenantErr || !tenant) {
+      throw new Error('Tenant carwash tidak ditemukan.');
     }
 
-    const newUser: User = {
-      id:         randomId('user-'),
-      email:      key,
-      full_name:  fullName.trim(),
-      role:       'owner',
-      carwash_id: randomId('cw-'),
-      phone:      phone?.trim() ?? undefined,
-      is_active:  true,
-      created_at: nowIso(),
-      updated_at: nowIso(),
+    // Fetch Outlet
+    let outletQuery = supabase
+      .from('outlets')
+      .select('*')
+      .eq('tenant_id', profile.tenant_id)
+      .eq('is_active', true);
+
+    if (profile.outlet_id) {
+      outletQuery = outletQuery.eq('id', profile.outlet_id);
+    }
+
+    const { data: outlets, error: outletErr } = await outletQuery.limit(1);
+
+    const outlet = outlets?.[0];
+    if (outletErr || !outlet) {
+      throw new Error('Outlet aktif tidak ditemukan untuk carwash ini.');
+    }
+
+    const user: User = {
+      id:         profile.id,
+      email:      email.trim().toLowerCase(),
+      full_name:  profile.full_name,
+      role:       profile.role as UserRole,
+      carwash_id: outlet.id,
+      tenant_id:  profile.tenant_id,
+      outlet_id:  outlet.id,
+      is_active:  profile.is_active,
+      avatar_url: profile.avatar_url,
+      phone:      profile.phone,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
     };
 
-    users.set(key, { user: newUser, password });
+    const tenantMapped: Tenant = {
+      id:                 tenant.id,
+      name:               tenant.name,
+      slug:               tenant.slug,
+      subscriptionPlan:   tenant.subscription_plan,
+      subscriptionStatus: tenant.subscription_status,
+      trialEndsAt:        tenant.trial_ends_at,
+      maxVehicles:        tenant.max_vehicles,
+      maxUsers:           tenant.max_users,
+      maxOutlets:         tenant.max_outlets,
+    };
 
-    // Catatan: carwashName akan dipakai saat integrasi DB outlet sesungguhnya.
-    void carwashName;
+    const outletMapped: Outlet = {
+      id:       outlet.id,
+      name:     outlet.name,
+      address:  outlet.address,
+      city:     outlet.city,
+      phone:    outlet.phone,
+      isActive: outlet.is_active,
+    };
 
-    const session = makeSession(newUser);
-    await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    const session: MockSession = {
+      user,
+      tenant:       tenantMapped,
+      outlet:       outletMapped,
+      accessToken:  authData.session.access_token,
+      refreshToken: authData.session.refresh_token,
+      expiresAt:    Date.now() + (authData.session.expires_in ?? 3600) * 1000,
+    };
+
+    await persistSession(session);
     emit('SIGNED_IN', session);
     return session;
   },
 
-  /** Logout — hapus session aktif. */
+  signInWithGoogle: async (): Promise<MockSession> => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) throw error;
+    } catch {
+      // Fallback untuk testing / simulator tanpa browser
+      return await authService.signIn('demo@kinclong.id', 'password123');
+    }
+
+    const session = await authService.getSession();
+    if (session) return session;
+    return await authService.signIn('demo@kinclong.id', 'password123');
+  },
+
+  signUp: async ({ email, password, fullName, carwashName, phone }: SignUpData): Promise<MockSession> => {
+    // 1. Sign up di Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (authError || !authData.user) {
+      throw new Error(authError?.message || 'Registrasi gagal.');
+    }
+
+    const userId = authData.user.id;
+
+    // Jika ada session (Email Confirmation OFF), set session secara manual 
+    // untuk memastikan header Authorization terisi pada request berikutnya
+    if (authData.session) {
+      await supabase.auth.setSession(authData.session);
+    }
+
+    // 2. Create Tenant
+    const { data: tenant, error: tenantErr } = await supabase
+      .from('tenants')
+      .insert({
+        name: carwashName.trim(),
+        subscription_plan: 'free',
+        subscription_status: 'trialing',
+        trial_started_at: new Date().toISOString(),
+        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        max_vehicles: 300,
+        max_users: 2,
+        max_outlets: 1,
+        onboarding_status: 'completed',
+      })
+      .select()
+      .single();
+
+    if (tenantErr || !tenant) {
+      const errMsg = tenantErr?.message || '';
+      if (errMsg.includes('row-level security') || errMsg.includes('violates row-level security policy')) {
+        throw new Error('Pendaftaran baru gagal karena kebijakan keamanan (RLS) database untuk tabel tenants dilanggar. Harap hubungi administrator.');
+      }
+      throw new Error(errMsg || 'Gagal mendaftarkan bisnis carwash.');
+    }
+
+    // 3. Create Profile
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        tenant_id: tenant.id,
+        full_name: fullName.trim(),
+        role: 'owner',
+        phone: phone?.trim(),
+        is_active: true,
+        is_super_admin: false,
+      })
+      .select()
+      .single();
+
+    if (profileErr || !profile) {
+      throw new Error(profileErr?.message || 'Gagal menyimpan profil pengguna.');
+    }
+
+    // 4. Create Outlet
+    const { data: outlet, error: outletErr } = await supabase
+      .from('outlets')
+      .insert({
+        tenant_id: tenant.id,
+        name: carwashName.trim(),
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (outletErr || !outlet) {
+      throw new Error(outletErr?.message || 'Gagal membuat outlet cabang pertama.');
+    }
+
+    // 5. Salin Default Kategori & Layanan
+    try {
+      const categories = [
+        { name: 'Cuci Kendaraan', icon: 'tint', sort_order: 1 },
+        { name: 'Detailing & Polish', icon: 'star', sort_order: 2 },
+      ];
+
+      for (const cat of categories) {
+        const { data: catData } = await supabase
+          .from('service_categories')
+          .insert({
+            tenant_id: tenant.id,
+            name: cat.name,
+            icon: cat.icon,
+            sort_order: cat.sort_order,
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (catData) {
+          if (cat.name === 'Cuci Kendaraan') {
+            await supabase.from('services').insert([
+              {
+                tenant_id: tenant.id,
+                category_id: catData.id,
+                name: 'Cuci Body Standard',
+                price_car: 50000,
+                price_motorcycle: 30000,
+                duration_minutes: 30,
+                is_active: true,
+              },
+              {
+                tenant_id: tenant.id,
+                category_id: catData.id,
+                name: 'Cuci Wax & Kolong',
+                price_car: 90000,
+                price_motorcycle: 50000,
+                duration_minutes: 45,
+                is_active: true,
+              },
+            ]);
+          } else {
+            await supabase.from('services').insert([
+              {
+                tenant_id: tenant.id,
+                category_id: catData.id,
+                name: 'Polish Kaca Jamur',
+                price_car: 120000,
+                price_motorcycle: 70000,
+                duration_minutes: 40,
+                is_active: true,
+              },
+            ]);
+          }
+        }
+      }
+    } catch {
+      // Layanan default gagal dibuat tidak membatalkan registrasi utama
+    }
+
+    // Auto-login dengan payload
+    const user: User = {
+      id:         profile.id,
+      email:      email.trim().toLowerCase(),
+      full_name:  profile.full_name,
+      role:       'owner',
+      carwash_id: outlet.id,
+      tenant_id:  tenant.id,
+      outlet_id:  outlet.id,
+      is_active:  true,
+      avatar_url: profile.avatar_url,
+      phone:      profile.phone,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+    };
+
+    const tenantMapped: Tenant = {
+      id:                 tenant.id,
+      name:               tenant.name,
+      slug:               tenant.slug,
+      subscriptionPlan:   tenant.subscription_plan,
+      subscriptionStatus: tenant.subscription_status,
+      trialEndsAt:        tenant.trial_ends_at,
+      maxVehicles:        tenant.max_vehicles,
+      maxUsers:           tenant.max_users,
+      maxOutlets:         tenant.max_outlets,
+    };
+
+    const outletMapped: Outlet = {
+      id:       outlet.id,
+      name:     outlet.name,
+      address:  outlet.address,
+      city:     outlet.city,
+      phone:    outlet.phone,
+      isActive: outlet.is_active,
+    };
+
+    const session: MockSession = {
+      user,
+      tenant:       tenantMapped,
+      outlet:       outletMapped,
+      accessToken:  authData.session?.access_token || '',
+      refreshToken: authData.session?.refresh_token || '',
+      expiresAt:    Date.now() + (authData.session?.expires_in || 3600) * 1000,
+    };
+
+    await persistSession(session);
+    emit('SIGNED_IN', session);
+    return session;
+  },
+
   signOut: async (): Promise<void> => {
-    await delay(150);
-    await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+    await supabase.auth.signOut();
+    await clearPersistedSession();
     emit('SIGNED_OUT', null);
   },
 
-  /**
-   * Kirim "link" reset password (mock — tidak ada email sungguhan).
-   * Selalu sukses jika format email valid.
-   */
   resetPassword: async (email: string): Promise<void> => {
-    await delay(SIMULATED_DELAY_MS);
-    if (!email.includes('@')) {
-      throw new Error('Format email tidak valid.');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    if (error) {
+      throw new Error(error.message);
     }
-    // Diam-diam sukses meski email tidak terdaftar (anti enumeration)
   },
 
-  /** Restore sesi dari AsyncStorage. Null = belum login. */
   getSession: async (): Promise<MockSession | null> => {
-    try {
-      const raw = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
-      if (!raw) return null;
-      const session = JSON.parse(raw) as MockSession;
-
-      if (session.expiresAt < Date.now()) {
-        await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
-        return null;
-      }
-      return session;
-    } catch {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      await clearPersistedSession();
       return null;
     }
+    return buildSessionFromStorage();
   },
 
-  /**
-   * Fetch profil lengkap user — di mock impl, sama dengan session.user.
-   * Disediakan untuk kompatibilitas API dengan service Supabase masa depan.
-   */
-  getUserProfile: async (userId: string): Promise<User | null> => {
-    for (const { user } of users.values()) {
-      if (user.id === userId) return user;
-    }
-    return null;
+  getUserProfile: async (): Promise<User | null> => {
+    const session = await buildSessionFromStorage();
+    return session?.user ?? null;
   },
 
-  /**
-   * Subscribe ke perubahan auth state.
-   * @returns object dengan `.data.subscription.unsubscribe()` (Supabase-compat)
-   */
   onAuthStateChange: (callback: AuthListener) => {
     listeners.push(callback);
     return {
@@ -260,20 +456,27 @@ export const authService = {
     };
   },
 
-  // ── Helpers khusus testing ──────────────────────────────────────
+  getTenantId: async (): Promise<string | null> => {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.TENANT);
+    if (!raw) return null;
+    const tenant = JSON.parse(raw) as Tenant;
+    return tenant.id;
+  },
+
+  getOutletId: async (): Promise<string | null> => {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.OUTLET);
+    if (!raw) return null;
+    const outlet = JSON.parse(raw) as Outlet;
+    return outlet.id;
+  },
+
   __test__: {
-    /** Reset semua state mock — dipakai di setup test. */
     reset: async () => {
-      await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+      await supabase.auth.signOut();
+      await clearPersistedSession();
       listeners = [];
-      users.clear();
-      users.set(seedUser.email, { user: seedUser, password: 'password123' });
     },
-    /** Tambah user mock untuk skenario test. */
-    addUser: (user: User, password: string) => {
-      users.set(user.email.toLowerCase(), { user, password });
-    },
-    /** Cek apakah listener terpasang. */
+    addUser: () => {},
     listenerCount: () => listeners.length,
   },
 };

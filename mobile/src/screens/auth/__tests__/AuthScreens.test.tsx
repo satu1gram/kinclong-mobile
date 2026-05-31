@@ -52,8 +52,7 @@ describe('LoginScreen', () => {
     expect(getByTestId('login-email-input')).toBeTruthy();
     expect(getByTestId('login-password-input')).toBeTruthy();
     expect(getByTestId('login-submit-button')).toBeTruthy();
-    expect(getByTestId('login-google-button')).toBeTruthy();
-    expect(getByText('Masuk ke Akun')).toBeTruthy();
+    expect(getByText('Masuk ke akun Anda')).toBeTruthy();
   });
 
   it('menampilkan error validasi saat submit form kosong', async () => {
@@ -102,15 +101,6 @@ describe('LoginScreen', () => {
     expect(banner).toBeTruthy();
   });
 
-  it('Google OAuth button → user di-set otomatis', async () => {
-    const { getByTestId } = renderAuthNav('Login');
-    await act(async () => {
-      fireEvent.press(getByTestId('login-google-button'));
-    });
-    await waitFor(() => {
-      expect(useAuthStore.getState().user).not.toBeNull();
-    });
-  });
 });
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -126,7 +116,6 @@ describe('RegisterScreen', () => {
     expect(getByTestId('register-password-input')).toBeTruthy();
     expect(getByTestId('register-confirm-password-input')).toBeTruthy();
     expect(getByTestId('register-submit-button')).toBeTruthy();
-    expect(getByTestId('register-google-button')).toBeTruthy();
   });
 
   it('error muncul saat password tidak cocok', async () => {
